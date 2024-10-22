@@ -4,6 +4,7 @@ import os
 import glob
 import argparse
 
+# MSRC001_0064 [P-state [7:0]] (PStateDef)
 pstates = range(0xC0010064, 0xC001006C)
 
 
@@ -36,18 +37,20 @@ def readmsr(msr, cpu=0):
 
 
 def pstate2str(val):
-    # PstateEn
+    # Bits[63]: PstateEn
     if val & (1 << 63):
-        # CpuFid[7:0]: core frequency ID
+        # Bits[7:0]: CpuFid[7:0]: core frequency ID
         # Value: FFh-10h
         # Description: <Value>*25
         fid = val & 0xFF
-        # CpuDfsId: core divisor ID
+        # Bits[13:8]: CpuDfsId: core divisor ID
         did = (val & 0x3F00) >> 8
-        # CpuVid[7:0]: core VID
+        # Bits[21:14]: CpuVid[7:0]: core VID
         vid = (val & 0x3FC000) >> 14
         # VCO/<Value/8>
+        # FIXME: Handle VCO/1 and VCO/1.125 special cases
         ratio = 25 * fid / (12.5 * did)
+        # FIXME: Source?
         vcore = 1.55 - 0.00625 * vid
         return (
             "Enabled - FID = %X - DID = %X - VID = %X - Ratio = %.2f - vCore = %.5f"
@@ -61,14 +64,17 @@ def setbits(val, base, length, new):
     return (val ^ (val & ((2**length - 1) << base))) + (new << base)
 
 
+# Bits[7:0]: CpuFid[7:0]: core frequency ID
 def setfid(val, new):
     return setbits(val, 0, 8, new)
 
 
+# Bits[13:8]: CpuDfsId: core divisor ID
 def setdid(val, new):
     return setbits(val, 8, 6, new)
 
 
+# Bits[21:14]: CpuVid[7:0]: core VID
 def setvid(val, new):
     return setbits(val, 14, 8, new)
 
@@ -101,6 +107,7 @@ args = parser.parse_args()
 if args.list:
     for p in range(len(pstates)):
         print("P" + str(p) + " - " + pstate2str(readmsr(pstates[p])))
+    # FIXME: Source?
     print(
         "C6 State - Package - "
         + ("Enabled" if readmsr(0xC0010292) & (1 << 32) else "Disabled")
@@ -114,7 +121,9 @@ if args.list:
             else "Disabled"
         )
     )
-    # CpbDis: core performance boost disable. Read-write. Reset: 0. 0=CPB is
+
+    # MSRC001_0015 [Hardware Configuration] (HWCR)
+    # Bits[25]: CpbDis: core performance boost disable. Read-write. Reset: 0. 0=CPB is
     # requested to be enabled.  1=CPB is disabled. Specifies whether core
     # performance boost is requested to be enabled or disabled. If core
     # performance boost is disabled while a core is in a boosted P-state, the
@@ -144,6 +153,11 @@ if args.pstate >= 0:
         new = setvid(new, args.vid)
         print("Setting VID to %X" % args.vid)
     if new != old:
+        # Bits[21]: LockTscToCurrentP0: lock the TSC to the current P0
+        # frequency. Read-write. Reset: 0. 0=The TSC will count at the P0
+        # frequency. 1=The TSC frequency is locked to the current P0 frequency
+        # at the time this bit is set and remains fixed regardless of future
+        # changes to the P0 frequency.
         if not (readmsr(0xC0010015) & (1 << 21)):
             print("Locking TSC frequency")
             for c in range(len(glob.glob("/dev/cpu/[0-9]*/msr"))):
@@ -151,6 +165,7 @@ if args.pstate >= 0:
         print("New P" + str(args.pstate) + ": " + pstate2str(new))
         writemsr(pstates[args.pstate], new)
 
+# FIXME: Source?
 if args.c6_enable:
     writemsr(0xC0010292, readmsr(0xC0010292) | (1 << 32))
     writemsr(0xC0010296, readmsr(0xC0010296) | ((1 << 22) | (1 << 14) | (1 << 6)))
