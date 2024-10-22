@@ -26,3 +26,20 @@ Requires root access and the msr kernel module loaded (just run "modprobe msr" a
       --c6-disable          Disable C-State C6
       --cpb-enable          Enable Core Performance Boost
       --cpb-disable         Disable Core Performance Boost
+
+Example for frequency set and pin:
+
+```shell
+# on AMD EPYC 7551
+# current frequency: 2500MHz -> 2000MHz
+$ sudo ./zenstates.py --cpb-disable
+
+# set frequency to 1900MHz
+$ sudo ./zenstates.py -l
+P0 - Enabled - FID = 64 - DID = A - VID = 5E - Ratio = 20.00 - vCore = 0.96250
+$ sudo ./zenstates.py -p 0 --fid 5f
+Current P0: Enabled - FID = 64 - DID = A - VID = 5E - Ratio = 20.00 - vCore = 0.96250
+Setting FID to 5F
+Locking TSC frequency
+New P0: Enabled - FID = 5F - DID = A - VID = 5E - Ratio = 19.00 - vCore = 0.96250
+```
