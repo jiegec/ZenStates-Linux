@@ -7,6 +7,13 @@ import argparse
 # MSRC001_0064 [P-state [7:0]] (PStateDef)
 pstates = range(0xC0010064, 0xC001006C)
 
+# read cpu family
+cpu_family = None
+with open("/proc/cpuinfo", "r", encoding="utf-8") as f:
+    for line in f:
+        if "cpu family" in line:
+            cpu_family = int(line.strip().split()[-1])
+
 
 def writemsr(msr, val, cpu=-1):
     try:
@@ -39,23 +46,36 @@ def readmsr(msr, cpu=0):
 def pstate2str(val):
     # Bits[63]: PstateEn
     if val & (1 << 63):
-        # Bits[7:0]: CpuFid[7:0]: core frequency ID
-        # Value: FFh-10h
-        # Description: <Value>*25
-        fid = val & 0xFF
-        # Bits[13:8]: CpuDfsId: core divisor ID
-        did = (val & 0x3F00) >> 8
-        # Bits[21:14]: CpuVid[7:0]: core VID
-        vid = (val & 0x3FC000) >> 14
-        # VCO/<Value/8>
-        # FIXME: Handle VCO/1 and VCO/1.125 special cases
-        ratio = 25 * fid / (12.5 * did)
-        # FIXME: Source?
-        vcore = 1.55 - 0.00625 * vid
-        return (
-            "Enabled - FID = %X - DID = %X - VID = %X - Ratio = %.2f - vCore = %.5f"
-            % (fid, did, vid, ratio, vcore)
-        )
+        # Family 1Ah
+        if cpu_family == 26:
+            # Bits[11:0]: CpuFid[11:0]: core frequency ID
+            # Value: FFFh-010h
+            # Description: <Value>*5
+            fid = val & 0xFFF
+            ratio = 5 * fid
+            # Bits[32]: CpuVid[8]: core VID[8]
+            # Bits[21:14]: CpuVid[7:0]: core VID[7:0]
+            vid = (val & 0x3FC000) >> 14
+            vid |= (val & 0x100000000) >> 24
+            return "Enabled - FID = %X - VID = %X - Ratio = %.2f" % (fid, vid, ratio)
+        else:
+            # Bits[7:0]: CpuFid[7:0]: core frequency ID
+            # Value: FFh-10h
+            # Description: <Value>*25
+            fid = val & 0xFF
+            # Bits[13:8]: CpuDfsId: core divisor ID
+            did = (val & 0x3F00) >> 8
+            # Bits[21:14]: CpuVid[7:0]: core VID
+            vid = (val & 0x3FC000) >> 14
+            # VCO/<Value/8>
+            # FIXME: Handle VCO/1 and VCO/1.125 special cases
+            ratio = 25 * fid / (12.5 * did)
+            # FIXME: Source?
+            vcore = 1.55 - 0.00625 * vid
+            return (
+                "Enabled - FID = %X - DID = %X - VID = %X - Ratio = %.2f - vCore = %.5f"
+                % (fid, did, vid, ratio, vcore)
+            )
     else:
         return "Disabled"
 
