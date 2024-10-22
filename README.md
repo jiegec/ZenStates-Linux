@@ -36,12 +36,13 @@ $ sudo ./zenstates.py --cpb-disable
 
 # set frequency to 1900MHz
 $ sudo ./zenstates.py -l
-P0 - Enabled - FID = 64 - DID = A - VID = 5E - Ratio = 20.00 - vCore = 0.96250
+P0 - Enabled - FID = 64 - DID = A - VID = 5E - Freq = 2000.00 MHz - vCore = 0.96250
+P1 - Enabled - FID = 60 - DID = C - VID = 63 - Freq = 1600.00 MHz - vCore = 0.93125
+P2 - Enabled - FID = 60 - DID = 10 - VID = 69 - Freq = 1200.00 MHz - vCore = 0.89375
 $ sudo ./zenstates.py -p 0 --fid 5f
-Current P0: Enabled - FID = 64 - DID = A - VID = 5E - Ratio = 20.00 - vCore = 0.96250
+Current P0: Enabled - FID = 64 - DID = A - VID = 5E - Freq = 2000.00 MHz - vCore = 0.96250
 Setting FID to 5F
-Locking TSC frequency
-New P0: Enabled - FID = 5F - DID = A - VID = 5E - Ratio = 19.00 - vCore = 0.96250
+New P0: Enabled - FID = 5F - DID = A - VID = 5E - Freq = 1900.00 MHz - vCore = 0.96250
 
 # on AMD Ryzen 9 9950X
 # current frequency: 5700MHz -> 4300MHz
