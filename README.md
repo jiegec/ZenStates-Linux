@@ -42,4 +42,16 @@ Current P0: Enabled - FID = 64 - DID = A - VID = 5E - Ratio = 20.00 - vCore = 0.
 Setting FID to 5F
 Locking TSC frequency
 New P0: Enabled - FID = 5F - DID = A - VID = 5E - Ratio = 19.00 - vCore = 0.96250
+
+# on AMD Ryzen 9 9950X
+# current frequency: 5700MHz -> 4300MHz
+$ sudo ./zenstates.py --cpb-disable
+
+# set frequency to 4200MHz
+$ sudo ./zenstates.py -l
+P0 - Enabled - FID = 35C - VID = C9 - Freq = 4300.00
+$ sudo ./zenstates.py -p 0 --fid 348
+Current P0: Enabled - FID = 35C - VID = C9 - Freq = 4300.00
+Setting FID to 348
+New P0: Enabled - FID = 348 - VID = C9 - Freq = 4200.00
 ```
