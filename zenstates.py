@@ -46,6 +46,7 @@ def readmsr(msr, cpu=0):
 def pstate2str(val):
     # Bits[63]: PstateEn
     if val & (1 << 63):
+        # ref: https://github.com/torvalds/linux/blob/c2ee9f594da826bea183ed14f2cc029c719bf4da/tools/power/cpupower/utils/helpers/amd.c#L75
         # Family 1Ah
         if cpu_family == 26:
             # Bits[11:0]: CpuFid[11:0]: core frequency ID
@@ -57,7 +58,7 @@ def pstate2str(val):
             # Bits[21:14]: CpuVid[7:0]: core VID[7:0]
             vid = (val & 0x3FC000) >> 14
             vid |= (val & 0x100000000) >> 24
-            return "Enabled - FID = %X - VID = %X - Freq = %.2f" % (fid, vid, freq)
+            return "Enabled - FID = %X - VID = %X - Freq = %.2f MHz" % (fid, vid, freq)
         else:
             # Bits[7:0]: CpuFid[7:0]: core frequency ID
             # Value: FFh-10h
@@ -70,12 +71,12 @@ def pstate2str(val):
             # VCO/<Value/8>
             # FIXME: Handle VCO/1 and VCO/1.125 special cases
             # Base frequency = 100MHz
-            ratio = 25 * fid / (12.5 * did)
+            freq = 100 * 25 * fid / (12.5 * did)
             # FIXME: Source?
             vcore = 1.55 - 0.00625 * vid
             return (
-                "Enabled - FID = %X - DID = %X - VID = %X - Ratio = %.2f - vCore = %.5f"
-                % (fid, did, vid, ratio, vcore)
+                "Enabled - FID = %X - DID = %X - VID = %X - Freq = %.2f MHz - vCore = %.5f"
+                % (fid, did, vid, freq, vcore)
             )
     else:
         return "Disabled"
