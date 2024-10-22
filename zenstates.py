@@ -6,112 +6,175 @@ import argparse
 
 pstates = range(0xC0010064, 0xC001006C)
 
-def writemsr(msr, val, cpu = -1):
+
+def writemsr(msr, val, cpu=-1):
     try:
         if cpu == -1:
-            for c in glob.glob('/dev/cpu/[0-9]*/msr'):
+            for c in glob.glob("/dev/cpu/[0-9]*/msr"):
                 f = os.open(c, os.O_WRONLY)
                 os.lseek(f, msr, os.SEEK_SET)
-                os.write(f, struct.pack('Q', val))
+                os.write(f, struct.pack("Q", val))
                 os.close(f)
         else:
-            f = os.open('/dev/cpu/%d/msr' % (cpu), os.O_WRONLY)
+            f = os.open("/dev/cpu/%d/msr" % (cpu), os.O_WRONLY)
             os.lseek(f, msr, os.SEEK_SET)
-            os.write(f, struct.pack('Q', val))
+            os.write(f, struct.pack("Q", val))
             os.close(f)
     except:
         raise OSError("msr module not loaded (run modprobe msr)")
 
-def readmsr(msr, cpu = 0):
+
+def readmsr(msr, cpu=0):
     try:
-        f = os.open('/dev/cpu/%d/msr' % cpu, os.O_RDONLY)
+        f = os.open("/dev/cpu/%d/msr" % cpu, os.O_RDONLY)
         os.lseek(f, msr, os.SEEK_SET)
-        val = struct.unpack('Q', os.read(f, 8))[0]
+        val = struct.unpack("Q", os.read(f, 8))[0]
         os.close(f)
         return val
     except:
         raise OSError("msr module not loaded (run modprobe msr)")
 
+
 def pstate2str(val):
+    # PstateEn
     if val & (1 << 63):
-        fid = val & 0xff
-        did = (val & 0x3f00) >> 8
-        vid = (val & 0x3fc000) >> 14
-        ratio = 25*fid/(12.5 * did)
+        # CpuFid[7:0]: core frequency ID
+        # Value: FFh-10h
+        # Description: <Value>*25
+        fid = val & 0xFF
+        # CpuDfsId: core divisor ID
+        did = (val & 0x3F00) >> 8
+        # CpuVid[7:0]: core VID
+        vid = (val & 0x3FC000) >> 14
+        # VCO/<Value/8>
+        ratio = 25 * fid / (12.5 * did)
         vcore = 1.55 - 0.00625 * vid
-        return "Enabled - FID = %X - DID = %X - VID = %X - Ratio = %.2f - vCore = %.5f" % (fid, did, vid, ratio, vcore)
+        return (
+            "Enabled - FID = %X - DID = %X - VID = %X - Ratio = %.2f - vCore = %.5f"
+            % (fid, did, vid, ratio, vcore)
+        )
     else:
         return "Disabled"
 
+
 def setbits(val, base, length, new):
-    return (val ^ (val & ((2 ** length - 1) << base))) + (new << base)
+    return (val ^ (val & ((2**length - 1) << base))) + (new << base)
+
 
 def setfid(val, new):
     return setbits(val, 0, 8, new)
 
+
 def setdid(val, new):
     return setbits(val, 8, 6, new)
+
 
 def setvid(val, new):
     return setbits(val, 14, 8, new)
 
+
 def hex(x):
     return int(x, 16)
 
-parser = argparse.ArgumentParser(description='Sets P-States for Ryzen processors')
-parser.add_argument('-l', '--list', action='store_true', help='List all P-States')
-parser.add_argument('-p', '--pstate', default=-1, type=int, choices=range(8), help='P-State to set')
-parser.add_argument('--enable', action='store_true', help='Enable P-State')
-parser.add_argument('--disable', action='store_true', help='Disable P-State')
-parser.add_argument('-f', '--fid', default=-1, type=hex, help='FID to set (in hex)')
-parser.add_argument('-d', '--did', default=-1, type=hex, help='DID to set (in hex)')
-parser.add_argument('-v', '--vid', default=-1, type=hex, help='VID to set (in hex)')
-parser.add_argument('--c6-enable', action='store_true', help='Enable C-State C6')
-parser.add_argument('--c6-disable', action='store_true', help='Disable C-State C6')
+
+parser = argparse.ArgumentParser(description="Sets P-States for Ryzen processors")
+parser.add_argument("-l", "--list", action="store_true", help="List all P-States")
+parser.add_argument(
+    "-p", "--pstate", default=-1, type=int, choices=range(8), help="P-State to set"
+)
+parser.add_argument("--enable", action="store_true", help="Enable P-State")
+parser.add_argument("--disable", action="store_true", help="Disable P-State")
+parser.add_argument("-f", "--fid", default=-1, type=hex, help="FID to set (in hex)")
+parser.add_argument("-d", "--did", default=-1, type=hex, help="DID to set (in hex)")
+parser.add_argument("-v", "--vid", default=-1, type=hex, help="VID to set (in hex)")
+parser.add_argument("--c6-enable", action="store_true", help="Enable C-State C6")
+parser.add_argument("--c6-disable", action="store_true", help="Disable C-State C6")
+parser.add_argument(
+    "--cpb-enable", action="store_true", help="Enable Core Performance Boost"
+)
+parser.add_argument(
+    "--cpb-disable", action="store_true", help="Disable Core Performance Boost"
+)
 
 args = parser.parse_args()
 
 if args.list:
     for p in range(len(pstates)):
-        print('P' + str(p) + " - " + pstate2str(readmsr(pstates[p])))
-    print('C6 State - Package - ' + ('Enabled' if readmsr(0xC0010292) & (1 << 32) else 'Disabled'))
-    print('C6 State - Core - ' + ('Enabled' if readmsr(0xC0010296) & ((1 << 22) | (1 << 14) | (1 << 6)) == ((1 << 22) | (1 << 14) | (1 << 6)) else 'Disabled'))
+        print("P" + str(p) + " - " + pstate2str(readmsr(pstates[p])))
+    print(
+        "C6 State - Package - "
+        + ("Enabled" if readmsr(0xC0010292) & (1 << 32) else "Disabled")
+    )
+    print(
+        "C6 State - Core - "
+        + (
+            "Enabled"
+            if readmsr(0xC0010296) & ((1 << 22) | (1 << 14) | (1 << 6))
+            == ((1 << 22) | (1 << 14) | (1 << 6))
+            else "Disabled"
+        )
+    )
+    # CpbDis: core performance boost disable. Read-write. Reset: 0. 0=CPB is
+    # requested to be enabled.  1=CPB is disabled. Specifies whether core
+    # performance boost is requested to be enabled or disabled. If core
+    # performance boost is disabled while a core is in a boosted P-state, the
+    # core automatically transitions to the highest performance non-boosted
+    # P-state.
+    print(
+        "Core Performance Boost - "
+        + ("Disabled" if readmsr(0xC0010015) & (1 << 25) else "Enabled")
+    )
 
 if args.pstate >= 0:
     new = old = readmsr(pstates[args.pstate])
-    print('Current P' + str(args.pstate) + ': ' + pstate2str(old))
+    print("Current P" + str(args.pstate) + ": " + pstate2str(old))
     if args.enable:
         new = setbits(new, 63, 1, 1)
-        print('Enabling state')
+        print("Enabling state")
     if args.disable:
         new = setbits(new, 63, 1, 0)
-        print('Disabling state')
+        print("Disabling state")
     if args.fid >= 0:
         new = setfid(new, args.fid)
-        print('Setting FID to %X' % args.fid)
+        print("Setting FID to %X" % args.fid)
     if args.did >= 0:
         new = setdid(new, args.did)
-        print('Setting DID to %X' % args.did)
+        print("Setting DID to %X" % args.did)
     if args.vid >= 0:
         new = setvid(new, args.vid)
-        print('Setting VID to %X' % args.vid)
+        print("Setting VID to %X" % args.vid)
     if new != old:
         if not (readmsr(0xC0010015) & (1 << 21)):
-            print('Locking TSC frequency')
-            for c in range(len(glob.glob('/dev/cpu/[0-9]*/msr'))):
+            print("Locking TSC frequency")
+            for c in range(len(glob.glob("/dev/cpu/[0-9]*/msr"))):
                 writemsr(0xC0010015, readmsr(0xC0010015, c) | (1 << 21), c)
-        print('New P' + str(args.pstate) + ': ' + pstate2str(new))
+        print("New P" + str(args.pstate) + ": " + pstate2str(new))
         writemsr(pstates[args.pstate], new)
 
 if args.c6_enable:
     writemsr(0xC0010292, readmsr(0xC0010292) | (1 << 32))
     writemsr(0xC0010296, readmsr(0xC0010296) | ((1 << 22) | (1 << 14) | (1 << 6)))
-    print('Enabling C6 state')
+    print("Enabling C6 state")
 
 if args.c6_disable:
     writemsr(0xC0010292, readmsr(0xC0010292) & ~(1 << 32))
     writemsr(0xC0010296, readmsr(0xC0010296) & ~((1 << 22) | (1 << 14) | (1 << 6)))
-    print('Disabling C6 state')
+    print("Disabling C6 state")
 
-if not args.list and args.pstate == -1 and not args.c6_enable and not args.c6_disable:
+if args.cpb_enable:
+    writemsr(0xC0010015, readmsr(0xC0010015) & ~(1 << 25))
+    print("Enabling core performance boost")
+
+if args.cpb_disable:
+    writemsr(0xC0010015, readmsr(0xC0010015) | (1 << 25))
+    print("Disabling core performance boost")
+
+if (
+    not args.list
+    and args.pstate == -1
+    and not args.c6_enable
+    and not args.c6_disable
+    and not args.cpb_enable
+    and not args.cpb_disable
+):
     parser.print_help()
