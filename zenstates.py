@@ -52,12 +52,12 @@ def pstate2str(val):
             # Value: FFFh-010h
             # Description: <Value>*5
             fid = val & 0xFFF
-            ratio = 5 * fid
+            freq = 5 * fid
             # Bits[32]: CpuVid[8]: core VID[8]
             # Bits[21:14]: CpuVid[7:0]: core VID[7:0]
             vid = (val & 0x3FC000) >> 14
             vid |= (val & 0x100000000) >> 24
-            return "Enabled - FID = %X - VID = %X - Ratio = %.2f" % (fid, vid, ratio)
+            return "Enabled - FID = %X - VID = %X - Freq = %.2f" % (fid, vid, freq)
         else:
             # Bits[7:0]: CpuFid[7:0]: core frequency ID
             # Value: FFh-10h
@@ -69,6 +69,7 @@ def pstate2str(val):
             vid = (val & 0x3FC000) >> 14
             # VCO/<Value/8>
             # FIXME: Handle VCO/1 and VCO/1.125 special cases
+            # Base frequency = 100MHz
             ratio = 25 * fid / (12.5 * did)
             # FIXME: Source?
             vcore = 1.55 - 0.00625 * vid
@@ -84,19 +85,33 @@ def setbits(val, base, length, new):
     return (val ^ (val & ((2**length - 1) << base))) + (new << base)
 
 
-# Bits[7:0]: CpuFid[7:0]: core frequency ID
 def setfid(val, new):
-    return setbits(val, 0, 8, new)
+    if cpu_family == 26:
+        # Bits[11:0]: CpuFid[11:0]: core frequency ID
+        return setbits(val, 0, 12, new)
+    else:
+        # Bits[7:0]: CpuFid[7:0]: core frequency ID
+        return setbits(val, 0, 8, new)
 
 
-# Bits[13:8]: CpuDfsId: core divisor ID
 def setdid(val, new):
-    return setbits(val, 8, 6, new)
+    if cpu_family == 26:
+        print("Not supported on family 1Ah")
+        return val
+    else:
+        # Bits[13:8]: CpuDfsId: core divisor ID
+        return setbits(val, 8, 6, new)
 
 
-# Bits[21:14]: CpuVid[7:0]: core VID
 def setvid(val, new):
-    return setbits(val, 14, 8, new)
+    if cpu_family == 26:
+        # Bits[32]: CpuVid[8]: core VID[8]
+        # Bits[21:14]: CpuVid[7:0]: core VID[7:0]
+        val = setbits(val, 14, 8, new & 0xFF)
+        return setbits(val, 32, 1, new >> 8)
+    else:
+        # Bits[21:14]: CpuVid[7:0]: core VID
+        return setbits(val, 14, 8, new)
 
 
 def hex(x):
