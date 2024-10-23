@@ -188,6 +188,27 @@ if args.list:
         )
     )
 
+    # MSRC001_02B2 [CPPC Capability 2] (Core::X86::Msr::CppcCapability2)
+    cppc_cap2 = readmsr(0xC00102B2)
+    print(
+        "CPPC Guaranteed Perf = %d"
+        % (
+            cppc_cap2 & 0xFF,
+        )
+    )
+
+    # MSRC001_02B3 [CPPC Request] (Core::X86::Msr::CppcRequest)
+    cppc_req = readmsr(0xC00102B3)
+    print(
+        "CPPC EPP = %d - Desired Perf = %d - Min Perf = %d - Max Perf = %d"
+        % (
+            (cppc_req >> 24) & 0xFF,
+            (cppc_req >> 16) & 0xFF,
+            (cppc_req >> 8) & 0xFF,
+            cppc_req & 0xFF,
+        )
+    )
+
 if args.pstate >= 0:
     new = old = readmsr(pstates[args.pstate])
     print("Current P" + str(args.pstate) + ": " + pstate2str(old))
