@@ -170,6 +170,24 @@ if args.list:
         + ("Disabled" if readmsr(0xC0010015) & (1 << 25) else "Enabled")
     )
 
+    # MSRC001_02B1 [CPPC Enable] (Core::X86::Msr::CppcEnable)
+    print(
+        "CPPC - "
+        + ("Enabled" if readmsr(0xC00102B1) & (1 << 0) else "Disable")
+    )
+
+    # MSRC001_02B0 [CPPC Capability 1] (Core::X86::Msr::CppcCapability1)
+    cppc_cap1 = readmsr(0xC00102B0)
+    print(
+        "CPPC Highest Perf = %d - Nominal Perf = %d - Lowest Nonlinear Perf = %d - Lowest Perf = %d"
+        % (
+            (cppc_cap1 >> 24) & 0xFF,
+            (cppc_cap1 >> 16) & 0xFF,
+            (cppc_cap1 >> 8) & 0xFF,
+            cppc_cap1 & 0xFF,
+        )
+    )
+
 if args.pstate >= 0:
     new = old = readmsr(pstates[args.pstate])
     print("Current P" + str(args.pstate) + ": " + pstate2str(old))
