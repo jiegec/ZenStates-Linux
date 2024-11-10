@@ -171,10 +171,7 @@ if args.list:
     )
 
     # MSRC001_02B1 [CPPC Enable] (Core::X86::Msr::CppcEnable)
-    print(
-        "CPPC - "
-        + ("Enabled" if readmsr(0xC00102B1) & (1 << 0) else "Disable")
-    )
+    print("CPPC - " + ("Enabled" if readmsr(0xC00102B1) & (1 << 0) else "Disable"))
 
     # MSRC001_02B0 [CPPC Capability 1] (Core::X86::Msr::CppcCapability1)
     cppc_cap1 = readmsr(0xC00102B0)
@@ -190,12 +187,7 @@ if args.list:
 
     # MSRC001_02B2 [CPPC Capability 2] (Core::X86::Msr::CppcCapability2)
     cppc_cap2 = readmsr(0xC00102B2)
-    print(
-        "CPPC Guaranteed Perf = %d"
-        % (
-            cppc_cap2 & 0xFF,
-        )
-    )
+    print("CPPC Guaranteed Perf = %d" % (cppc_cap2 & 0xFF,))
 
     # MSRC001_02B3 [CPPC Request] (Core::X86::Msr::CppcRequest)
     cppc_req = readmsr(0xC00102B3)
