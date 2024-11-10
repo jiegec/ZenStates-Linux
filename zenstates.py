@@ -3,6 +3,7 @@ import struct
 import os
 import glob
 import argparse
+from contextlib import contextmanager
 
 # MSRC001_0064 [P-state [7:0]] (PStateDef)
 pstates = range(0xC0010064, 0xC001006C)
@@ -28,8 +29,10 @@ def writemsr(msr, val, cpu=-1):
             os.lseek(f, msr, os.SEEK_SET)
             os.write(f, struct.pack("Q", val))
             os.close(f)
-    except:
-        raise OSError("msr module not loaded (run modprobe msr)")
+    except PermissionError:
+        raise RuntimeError("Permission denied (try running as root)")
+    except FileNotFoundError as e:
+        raise OSError("msr module not loaded (run modprobe msr)") from e
 
 
 def readmsr(msr, cpu=0):
@@ -39,8 +42,10 @@ def readmsr(msr, cpu=0):
         val = struct.unpack("Q", os.read(f, 8))[0]
         os.close(f)
         return val
-    except:
-        raise OSError("msr module not loaded (run modprobe msr)")
+    except PermissionError:
+        raise RuntimeError("Permission denied (try running as root)")
+    except FileNotFoundError as e:
+        raise OSError("msr module not loaded (run modprobe msr)") from e
 
 
 def pstate2str(val):
@@ -140,6 +145,15 @@ parser.add_argument(
 
 args = parser.parse_args()
 
+
+@contextmanager
+def optional_feature(name):
+    try:
+        yield
+    except OSError as e:
+        print("Optional feature %s not available: %s" % (name, e))
+
+
 if args.list:
     for p in range(len(pstates)):
         print("P" + str(p) + " - " + pstate2str(readmsr(pstates[p])))
@@ -171,35 +185,39 @@ if args.list:
     )
 
     # MSRC001_02B1 [CPPC Enable] (Core::X86::Msr::CppcEnable)
-    print("CPPC - " + ("Enabled" if readmsr(0xC00102B1) & (1 << 0) else "Disable"))
+    with optional_feature("CPPC Enable"):
+        print("CPPC - " + ("Enabled" if readmsr(0xC00102B1) & (1 << 0) else "Disable"))
 
     # MSRC001_02B0 [CPPC Capability 1] (Core::X86::Msr::CppcCapability1)
-    cppc_cap1 = readmsr(0xC00102B0)
-    print(
-        "CPPC Highest Perf = %d - Nominal Perf = %d - Lowest Nonlinear Perf = %d - Lowest Perf = %d"
-        % (
-            (cppc_cap1 >> 24) & 0xFF,
-            (cppc_cap1 >> 16) & 0xFF,
-            (cppc_cap1 >> 8) & 0xFF,
-            cppc_cap1 & 0xFF,
+    with optional_feature("CPPC Highest Perf"):
+        cppc_cap1 = readmsr(0xC00102B0)
+        print(
+            "CPPC Highest Perf = %d - Nominal Perf = %d - Lowest Nonlinear Perf = %d - Lowest Perf = %d"
+            % (
+                (cppc_cap1 >> 24) & 0xFF,
+                (cppc_cap1 >> 16) & 0xFF,
+                (cppc_cap1 >> 8) & 0xFF,
+                cppc_cap1 & 0xFF,
+            )
         )
-    )
 
     # MSRC001_02B2 [CPPC Capability 2] (Core::X86::Msr::CppcCapability2)
-    cppc_cap2 = readmsr(0xC00102B2)
-    print("CPPC Guaranteed Perf = %d" % (cppc_cap2 & 0xFF,))
+    with optional_feature("CPPC Guaranteed Perf"):
+        cppc_cap2 = readmsr(0xC00102B2)
+        print("CPPC Guaranteed Perf = %d" % (cppc_cap2 & 0xFF,))
 
     # MSRC001_02B3 [CPPC Request] (Core::X86::Msr::CppcRequest)
-    cppc_req = readmsr(0xC00102B3)
-    print(
-        "CPPC EPP = %d - Desired Perf = %d - Min Perf = %d - Max Perf = %d"
-        % (
-            (cppc_req >> 24) & 0xFF,
-            (cppc_req >> 16) & 0xFF,
-            (cppc_req >> 8) & 0xFF,
-            cppc_req & 0xFF,
+    with optional_feature("CPPC EPP"):
+        cppc_req = readmsr(0xC00102B3)
+        print(
+            "CPPC EPP = %d - Desired Perf = %d - Min Perf = %d - Max Perf = %d"
+            % (
+                (cppc_req >> 24) & 0xFF,
+                (cppc_req >> 16) & 0xFF,
+                (cppc_req >> 8) & 0xFF,
+                cppc_req & 0xFF,
+            )
         )
-    )
 
 if args.pstate >= 0:
     new = old = readmsr(pstates[args.pstate])
